@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Search Movies & TV</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="global.js"></script>
+
+    <style>
+      /* Loading Spinner */
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+        display: none;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Sentinel for Infinite Scroll */
+      #sentinel {
+        height: 20px;
+        margin-top: 10px;
+      }
+
+      /* Badge Style */
+      .type-badge {
+        background: #eee;
+        padding: 2px 6px;
+        font-size: 0.7em;
+        border-radius: 4px;
+        text-transform: uppercase;
+        font-weight: bold;
+        color: #555;
+      }
+
+      /* Results Container Style */
+      #results {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+
+        padding: 20px; /* Breathing room from screen edges */
+        justify-content: center; /* Keeps the cards centered nicely */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="white-box">
+      <h1 style="text-align: center">Find Movies & TV</h1>
+
+      <div
+        style="
+          margin-bottom: 20px;
+          display: flex;
+          justify-content: center;
+          gap: 10px;
+        "
+      >
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Enter name (e.g. Spiderman)..."
+          style="
+            padding: 10px;
+            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+          "
+        />
+        <button
+          onclick="searchMedia(true)"
+          style="
+            padding: 10px 20px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+          "
+        >
+          Search
+        </button>
+      </div>
+    </div>
+
+    <div id="results"></div>
+
+    <div id="loadingSpinner" class="spinner"></div>
+    <div id="sentinel"></div>
+
+    <script>
+      // --- 1. GENRE MAP ---
+      const genreMap = {
+        28: "Action",
+        12: "Adventure",
+        16: "Animation",
+        35: "Comedy",
+        80: "Crime",
+        99: "Documentary",
+        18: "Drama",
+        10751: "Family",
+        14: "Fantasy",
+        36: "History",
+        27: "Horror",
+        10402: "Music",
+        9648: "Mystery",
+        10749: "Romance",
+        878: "Sci-Fi",
+        10770: "TV Movie",
+        53: "Thriller",
+        10752: "War",
+        37: "Western",
+        10759: "Action & Adv",
+        10762: "Kids",
+        10763: "News",
+        10764: "Reality",
+        10765: "Sci-Fi & Fantasy",
+        10766: "Soap",
+        10767: "Talk",
+        10768: "War & Politics",
+      };
+
+      let currentPage = 1;
+      let currentQuery = "";
+      let isLoading = false;
+      let hasMoreResults = true;
+      let observer;
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const sentinel = document.getElementById("sentinel");
+        const options = { root: null, rootMargin: "100px", threshold: 0.1 };
+        observer = new IntersectionObserver(handleIntersect, options);
+        observer.observe(sentinel);
+      });
+
+      function handleIntersect(entries) {
+        const entry = entries[0];
+        if (
+          entry.isIntersecting &&
+          !isLoading &&
+          hasMoreResults &&
+          currentQuery
+        ) {
+          loadMore();
+        }
+      }
+
+      async function searchMedia(isNewSearch = false) {
+        const queryInput = document.getElementById("searchInput");
+        const resultsDiv = document.getElementById("results");
+        const spinner = document.getElementById("loadingSpinner");
+
+        if (isNewSearch) {
+          currentQuery = queryInput.value;
+          if (!currentQuery) {
+            alert("Please enter a name.");
+            return;
+          }
+          currentPage = 1;
+          resultsDiv.innerHTML = "";
+          hasMoreResults = true;
+          isLoading = false;
+        }
+
+        if (isLoading || !hasMoreResults) return;
+
+        isLoading = true;
+        spinner.style.display = "block";
+
+        try {
+          const response = await fetch(
+            `http://localhost:3000/search?q=${currentQuery}&page=${currentPage}`
+          );
+          const data = await response.json();
+
+          if (!data.results || data.results.length === 0) {
+            hasMoreResults = false;
+            if (isNewSearch) resultsDiv.innerHTML = "No results found.";
+          } else {
+            displayResults(data.results);
+          }
+        } catch (error) {
+          console.error(error);
+          if (isNewSearch) resultsDiv.innerHTML = "Error fetching data.";
+        } finally {
+          isLoading = false;
+          spinner.style.display = "none";
+        }
+      }
+
+      function loadMore() {
+        currentPage++;
+        searchMedia(false);
+      }
+
+      function getGenreNames(ids) {
+        if (!ids || ids.length === 0) return "Unknown";
+        return ids
+          .map((id) => genreMap[id])
+          .filter((name) => name)
+          .slice(0, 3)
+          .join(", ");
+      }
+
+      function displayResults(movies) {
+        const resultsDiv = document.getElementById("results");
+
+        movies.forEach((item) => {
+          if (item.poster_path) {
+            const itemEl = document.createElement("div");
+            itemEl.className = "movie-card";
+
+            const imgUrl = `https://image.tmdb.org/t/p/w200${item.poster_path}`;
+            const type = item.media_type;
+            const title = item.title || item.name;
+            const dateStr = item.release_date || item.first_air_date;
+            const year = dateStr ? dateStr.split("-")[0] : "N/A";
+            const genreText = getGenreNames(item.genre_ids);
+
+            itemEl.innerHTML = `
+                        <img src="${imgUrl}" alt="${title}">
+                        <h3>
+                            ${title} (${year}) 
+                            <span class="type-badge">${type}</span>
+                        </h3>
+                        <p style="font-size: 0.8em; color: #666; margin: 5px 0;">${genreText}</p>
+                        <p><strong>Rating:</strong> ${
+                          item.vote_average
+                            ? item.vote_average.toFixed(1)
+                            : "N/A"
+                        }</p>
+                    `;
+            resultsDiv.appendChild(itemEl);
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

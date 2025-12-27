@@ -1,44 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-<body>
-    <h1>Movie Search</h1>
-    <input type="text" id="searchInput" placeholder="Enter movie name...">
-    <button onclick="searchMovies()">Search</button>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Stream Search - Home</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="global.js"></script>
 
-    <div id="results" style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;"></div>
-
-    <script>
-        async function searchMovies() {
-            const query = document.getElementById('searchInput').value;
-            const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = 'Loading...';
-
-            try {
-                // Call YOUR backend, not TMDB directly
-                const response = await fetch(`http://localhost:3000/search?q=${query}`);
-                const data = await response.json();
-
-                resultsDiv.innerHTML = ''; // Clear loading text
-
-                data.results.forEach(movie => {
-                    if (movie.poster_path) { // Only show if image exists
-                        const movieEl = document.createElement('div');
-                        // TMDB images require a specific base URL
-                        const imgUrl = `https://image.tmdb.org/t/p/w200${movie.poster_path}`;
-
-                        movieEl.innerHTML = `
-                            <img src="${imgUrl}" alt="${movie.title}">
-                            <h3>${movie.title}</h3>
-                            <p>Rating: ${movie.vote_average}</p>
-                        `;
-                        resultsDiv.appendChild(movieEl);
-                    }
-                });
-            } catch (error) {
-                console.error(error);
-                resultsDiv.innerHTML = 'Error fetching movies.';
-            }
-        }
-    </script>
-</body>
+    <style>
+      .content {
+        padding: 50px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="white-box" style="text-align: center">
+      <h1>Welcome to Stream Search</h1>
+      <p>Your hub for discovering movies and streaming availability.</p>
+      <p>Click <strong>Search Movies</strong> above to start looking.</p>
+    </div>
+  </body>
 </html>
