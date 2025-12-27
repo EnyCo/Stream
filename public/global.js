@@ -175,41 +175,69 @@ async function openDetails(id, type) {
 
     // RENDER
     modalBody.innerHTML = `
-            <div class="modal-header">
-                <img src="${imgUrl}" alt="${title}" class="modal-poster">
-                <div class="modal-info">
-                    <h2 style="margin-top:0; margin-bottom: 5px;">${title}</h2>
-                    
-                    <div style="color: #555; font-weight: bold; margin-bottom: 15px;">
-                        ${year} &nbsp;•&nbsp; ${runtimeStr} &nbsp;•&nbsp; <span style="border: 1px solid #ccc; padding: 0 4px; border-radius: 4px; font-size: 0.9em;">${cert}</span>
+        <div class="modal-header" style="${bgStyle} border-radius: 8px; padding: 30px; display: flex; gap: 30px;">
+            
+            <div style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;">
+                <img src="${imgUrl}" alt="${title}" class="modal-poster" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+                
+                <div style="text-align: center;">
+                    <div style="font-size: 0.9em; line-height: 1.4; margin-bottom: 8px;">
+                        ${
+                          data.genres
+                            ? data.genres
+                                .map(
+                                  (g) =>
+                                    `<span class="tag" 
+                                   onclick="window.location.href='search.html?tab=genre&type=multi&genre=${g.id}'" 
+                                   style="display:inline-block; margin:2px; cursor:pointer; padding: 2px 6px; border-radius: 4px; ${tagStyle}" 
+                                   title="Browse all ${g.name}">
+                                   ${g.name}
+                            </span>`
+                                )
+                                .join("")
+                            : "N/A"
+                        }
                     </div>
 
-                    ${data.tagline ? `<p><i>"${data.tagline}"</i></p>` : ""}
-                    
-                    <div class="section-title">Overview</div>
-                    <p>${data.overview || "No description available."}</p>
-
-                    <div class="section-title">Key Details</div>
-                    <p><strong>Rating:</strong> ⭐ ${
-                      data.vote_average
-                        ? data.vote_average.toFixed(1) + "/10"
-                        : "N/A"
-                    }</p>
-                    <p><strong>Genres:</strong> ${
-                      data.genres
-                        ? data.genres
-                            .map((g) => `<span class="tag">${g.name}</span>`)
-                            .join("")
-                        : "N/A"
-                    }</p>
-                    
-                    <div class="section-title">Cast & Crew</div>
-                    <p><strong>Director:</strong> ${director}</p>
-                    <p><strong>Top Cast:</strong> ${cast}</p>
-                    <p><strong>Producers:</strong> ${producers}</p>
+                    <div style="font-weight: bold;">
+                        ⭐ ${
+                          data.vote_average
+                            ? data.vote_average.toFixed(1) + "/10"
+                            : "N/A"
+                        }
+                    </div>
                 </div>
             </div>
-        `;
+
+            <div class="modal-info" style="flex-grow: 1; color: #ffffff;"> ${
+              logoUrl
+                ? `<img src="${logoUrl}" alt="${title}" style="max-height: 80px; max-width: 100%; margin-bottom: 15px; display: block;">`
+                : `<h2 style="margin-top:0; margin-bottom: 5px;">${title}</h2>`
+            }
+                
+                <div style="font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #ffffff;">
+                    <span>${year}</span> • <span>${durationText}</span> • <span style="border: 1px solid #fff; padding: 0 4px; border-radius: 4px; font-size: 0.9em;">${cert}</span>
+                </div>
+
+                ${
+                  trailerLink
+                    ? `<a href="${trailerLink}" target="_blank" style="display: inline-block; background-color: white; color: black; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 15px; border: 1px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">▶ Watch Trailer</a>`
+                    : ""
+                }
+
+                <div class="section-title" style="${dividerStyle} margin-bottom:10px; font-weight: bold;">Overview</div>
+                <p style="line-height: 1.5; color: #ffffff;">${
+                  data.overview || "No description available."
+                }</p>
+                
+                <div class="section-title" style="${dividerStyle} margin-bottom:10px; margin-top: 20px; font-weight: bold;">Cast & Crew</div>
+                
+                <p style="color: #ffffff;"><strong>Director:</strong> <span style="color: #ffffff;">${director}</span></p>
+                <p style="color: #ffffff;"><strong>Top Cast:</strong> <span style="color: #ffffff;">${cast}</span></p>
+                <p style="color: #ffffff;"><strong>Producers:</strong> <span style="color: #ffffff;">${producers}</span></p>
+            </div>
+        </div>
+    `;
   } catch (error) {
     console.error(error);
     modalBody.innerHTML =
@@ -310,76 +338,85 @@ async function openDetails(id, type) {
     // --- 3. RENDER (Standard "Original" Layout) ---
 
     // Dark Mode Styling Variables
-    const bgStyle = "background-color: #1f1f1f; color: #e5e5e5;";
+    // Check if we have a backdrop image
+    const backdropUrl = data.backdrop_path
+      ? `https://image.tmdb.org/t/p/w1280${data.backdrop_path}`
+      : null;
+
+    // Use the image if it exists, otherwise fallback to the charcoal color
+    const bgStyle = backdropUrl
+      ? `background-image: linear-gradient(to right, rgba(0,0,0,0.9) 20%, rgba(0,0,0,0.6) 80%), url('${backdropUrl}'); background-size: cover; background-position: center; color: white;`
+      : "background-color: #1f1f1f; color: #e5e5e5;";
     const dividerStyle = "border-bottom: 1px solid rgba(255,255,255,0.2);";
     const tagStyle =
       "background: rgba(255,255,255,0.1); color: #ddd; border: 1px solid rgba(255,255,255,0.2);";
 
     modalBody.innerHTML = `
-            <div class="modal-header" style="${bgStyle} border-radius: 8px; padding: 30px; display: flex; gap: 30px;">
+        <div class="modal-header" style="${bgStyle} width: 100%; box-sizing: border-box; padding: 40px; display: flex; gap: 30px; min-height: 400px;">
+            
+            <div style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 2;">
+                <img src="${imgUrl}" alt="${title}" class="modal-poster" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
                 
-                <div style="width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;">
-                    <img src="${imgUrl}" alt="${title}" class="modal-poster" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-                    
-                    <div style="text-align: center;">
-                        <div style="font-size: 0.9em; line-height: 1.4; margin-bottom: 8px;">
-                            ${
-                              data.genres
-                                ? data.genres
-                                    .map(
-                                      (g) =>
-                                        `<span class="tag" 
-                                       onclick="window.location.href='search.html?tab=genre&type=multi&genre=${g.id}'" 
-                                       style="display:inline-block; margin:2px; cursor:pointer; padding: 2px 6px; border-radius: 4px; ${tagStyle}" 
-                                       title="Browse all ${g.name}">
-                                       ${g.name}
-                                </span>`
-                                    )
-                                    .join("")
-                                : "N/A"
-                            }
-                        </div>
-
-                        <div style="font-weight: bold;">
-                            ⭐ ${
-                              data.vote_average
-                                ? data.vote_average.toFixed(1) + "/10"
-                                : "N/A"
-                            }
-                        </div>
-                    </div>
-                </div>
-
-                <div class="modal-info" style="flex-grow: 1;">
-                    
-                    ${
-                      logoUrl
-                        ? `<img src="${logoUrl}" alt="${title}" style="max-height: 80px; max-width: 100%; margin-bottom: 15px; display: block;">`
-                        : `<h2 style="margin-top:0; margin-bottom: 5px;">${title}</h2>`
-                    }
-                    
-                    <div style="font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #aaa;">
-                        <span style="color: white;">${year}</span> • <span>${durationText}</span> • <span style="border: 1px solid #777; color: white; padding: 0 4px; border-radius: 4px; font-size: 0.9em;">${cert}</span>
+                <div style="text-align: center;">
+                    <div style="font-size: 0.9em; line-height: 1.4; margin-bottom: 8px;">
+                        ${
+                          data.genres
+                            ? data.genres
+                                .map(
+                                  (g) =>
+                                    `<span class="tag" 
+                                   onclick="window.location.href='search.html?tab=genre&type=multi&genre=${g.id}'" 
+                                   style="display:inline-block; margin:2px; cursor:pointer; padding: 2px 6px; border-radius: 4px; ${tagStyle}" 
+                                   title="Browse all ${g.name}">
+                                   ${g.name}
+                            </span>`
+                                )
+                                .join("")
+                            : "N/A"
+                        }
                     </div>
 
-                    ${
-                      trailerLink
-                        ? `<a href="${trailerLink}" target="_blank" style="display: inline-block; background-color: white; color: black; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 15px; border: 1px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">▶ Watch Trailer</a>`
-                        : ""
-                    }
-
-                    <div class="section-title" style="${dividerStyle} margin-bottom:10px; font-weight: bold;">Overview</div>
-                    <p style="line-height: 1.5; color: #ccc;">${
-                      data.overview || "No description available."
-                    }</p>
-                    
-                    <div class="section-title" style="${dividerStyle} margin-bottom:10px; margin-top: 20px; font-weight: bold;">Cast & Crew</div>
-                    <p style="color: #ccc;"><strong>Director:</strong> <span style="color: #e5e5e5;">${director}</span></p>
-                    <p style="color: #ccc;"><strong>Top Cast:</strong> <span style="color: #e5e5e5;">${cast}</span></p>
-                    <p style="color: #ccc;"><strong>Producers:</strong> <span style="color: #e5e5e5;">${producers}</span></p>
+                    <div style="font-weight: bold;">
+                        ⭐ ${
+                          data.vote_average
+                            ? data.vote_average.toFixed(1) + "/10"
+                            : "N/A"
+                        }
+                    </div>
                 </div>
             </div>
-        `;
+
+            <div class="modal-info" style="flex-grow: 1; color: #ffffff; position: relative; z-index: 2;">
+                
+                ${
+                  logoUrl
+                    ? `<img src="${logoUrl}" alt="${title}" style="max-height: 80px; max-width: 100%; margin-bottom: 15px; display: block;">`
+                    : `<h2 style="margin-top:0; margin-bottom: 5px;">${title}</h2>`
+                }
+                
+                <div style="font-weight: bold; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #ffffff;">
+                    <span>${year}</span> • <span>${durationText}</span> • <span style="border: 1px solid #fff; padding: 0 4px; border-radius: 4px; font-size: 0.9em;">${cert}</span>
+                </div>
+
+                ${
+                  trailerLink
+                    ? `<a href="${trailerLink}" target="_blank" style="display: inline-block; background-color: white; color: black; padding: 8px 16px; text-decoration: none; border-radius: 4px; font-weight: bold; margin-bottom: 15px; border: 1px solid #ccc; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">▶ Watch Trailer</a>`
+                    : ""
+                }
+
+                <div class="section-title" style="${dividerStyle} margin-bottom:10px; font-weight: bold;">Overview</div>
+                <p style="line-height: 1.5; color: #ffffff;">${
+                  data.overview || "No description available."
+                }</p>
+                
+                <div class="section-title" style="${dividerStyle} margin-bottom:10px; margin-top: 20px; font-weight: bold;">Cast & Crew</div>
+                
+                <p style="color: #ffffff;"><strong>Director:</strong> <span style="color: #ffffff;">${director}</span></p>
+                <p style="color: #ffffff;"><strong>Top Cast:</strong> <span style="color: #ffffff;">${cast}</span></p>
+                <p style="color: #ffffff;"><strong>Producers:</strong> <span style="color: #ffffff;">${producers}</span></p>
+            </div>
+        </div>
+    `;
   } catch (error) {
     console.error(error);
     modalBody.innerHTML =
