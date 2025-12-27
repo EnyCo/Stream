@@ -30,36 +30,169 @@ function cleanQuery(text) {
     .toLowerCase();
 }
 
-// --- UNIFIED SEARCH ENDPOINT ---
+// --- UPDATED: SEARCH ENDPOINT (Multi-Person Lookup) ---
 app.get("/search", async (req, res) => {
-  const rawQuery = req.query.q;
-  const page = req.query.page || 1; // Default to page 1 if not sent
-
-  if (!rawQuery) return res.status(400).json({ error: "Query required" });
-
-  const finalQuery = cleanQuery(rawQuery);
+  const { q, page } = req.query;
+  const type = req.query.type || "multi";
+  const pageNum = parseInt(page) || 1;
 
   try {
-    const response = await limiterAxios(`${TMDB_BASE_URL}/search/multi`, {
-      params: {
-        api_key: process.env.TMDB_API_KEY,
-        query: finalQuery,
-        language: "en-US",
-        include_adult: false,
-        page: page, // <--- Send the page number to TMDB
-      },
-    });
+    // --- CASE 1: SEARCH BY NAME (Multiple People) ---
+    // --- CASE 1: SEARCH BY NAME (Actors & Directors Only) ---
+    if (type === "person") {
+      // 1. Search for the Name
+      const personSearch = await limiterAxios(
+        `${TMDB_BASE_URL}/search/person`,
+        {
+          params: { api_key: process.env.TMDB_API_KEY, query: q },
+        }
+      );
 
-    // Filter: Must be Movie/TV AND have a date
-    const watchableContent = response.data.results.filter((item) => {
-      const isMedia = item.media_type === "movie" || item.media_type === "tv";
-      const hasDate = item.release_date || item.first_air_date;
-      return isMedia && hasDate;
-    });
+      if (personSearch.data.results.length === 0) {
+        return res.json({ results: [], personName: null });
+      }
 
-    res.json({ results: watchableContent });
+      // 2. Top 5 People
+      const topPeople = personSearch.data.results.slice(0, 5);
+
+      // Remove duplicates for the label
+      const uniqueNames = [...new Set(topPeople.map((p) => p.name))];
+      const namesFound = uniqueNames.join(", ");
+
+      // 3. Fetch Credits
+      const creditPromises = topPeople.map((person) =>
+        limiterAxios(`${TMDB_BASE_URL}/person/${person.id}/combined_credits`, {
+          params: { api_key: process.env.TMDB_API_KEY },
+        })
+      );
+
+      const creditResponses = await Promise.all(creditPromises);
+
+      // 4. Combine Work (STRICT FILTER APPLIED HERE)
+      let allWorks = [];
+      creditResponses.forEach((response) => {
+        const cast = response.data.cast || []; // "Cast" implies Acting (Keep all)
+        const crew = response.data.crew || [];
+
+        // FILTER: Only keep Crew items where the Job is "Director"
+        const directors = crew.filter((item) => item.job === "Director");
+
+        // Add Actors and Directors to the pile
+        allWorks.push(...cast, ...directors);
+      });
+
+      // 5. Remove Duplicates (by Movie ID)
+      const uniqueWorksMap = new Map();
+      allWorks.forEach((item) => {
+        if (!uniqueWorksMap.has(item.id)) {
+          uniqueWorksMap.set(item.id, item);
+        }
+      });
+      const uniqueWorks = Array.from(uniqueWorksMap.values());
+
+      // 6. Filter Junk & Sort by Popularity
+      const cleanWorks = uniqueWorks
+        .filter((item) => item.vote_count > 5)
+        .sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+
+      // 7. Paginate
+      const itemsPerPage = 20;
+      const start = (pageNum - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      const paginatedResults = cleanWorks.slice(start, end);
+
+      return res.json({ results: paginatedResults, personName: namesFound });
+    }
+
+    // --- CASE 2: STANDARD SEARCH ---
+    else {
+      const endpoint = type === "multi" ? "search/multi" : `search/${type}`;
+      const response = await limiterAxios(`${TMDB_BASE_URL}/${endpoint}`, {
+        params: { api_key: process.env.TMDB_API_KEY, query: q, page: page },
+      });
+
+      const results = response.data.results.map((item) => ({
+        ...item,
+        media_type: item.media_type || type,
+      }));
+
+      res.json({ results });
+    }
   } catch (error) {
     console.error("Search failed:", error.message);
+    res.status(500).json({ error: "Search failed" });
+  }
+});
+
+// --- UPDATED: DETAILS ENDPOINT (Fetches Images & Videos) ---
+app.get("/details/:type/:id", async (req, res) => {
+  const { type, id } = req.params;
+  try {
+    const response = await limiterAxios(`${TMDB_BASE_URL}/${type}/${id}`, {
+      params: {
+        api_key: process.env.TMDB_API_KEY,
+        // Request Credits, Ratings, Images (Logos/Backdrops), and Videos (Trailers)
+        append_to_response:
+          "credits,release_dates,content_ratings,images,videos",
+        include_image_language: "en,null", // Prefer English or text-less images
+      },
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Details fetch failed:", error.message);
+    res.status(500).json({ error: "Details fetch failed" });
+  }
+});
+
+// --- UPDATED: DISCOVER (Supports Genre Filtering) ---
+app.get("/discover", async (req, res) => {
+  const page = req.query.page || 1;
+  const genreId = req.query.genre;
+  const type = req.query.type || "multi"; // 'movie', 'tv', or 'multi'
+
+  try {
+    const params = {
+      api_key: process.env.TMDB_API_KEY,
+      language: "en-US",
+      sort_by: "popularity.desc",
+      page: page,
+      include_adult: false,
+      include_video: false,
+    };
+    if (genreId) params.with_genres = genreId;
+
+    const promises = [];
+
+    // If type is 'movie' or 'multi', fetch movies
+    if (type === "movie" || type === "multi") {
+      promises.push(
+        limiterAxios(`${TMDB_BASE_URL}/discover/movie`, { params }).then(
+          (res) =>
+            res.data.results.map((item) => ({ ...item, media_type: "movie" }))
+        )
+      );
+    }
+
+    // If type is 'tv' or 'multi', fetch TV
+    if (type === "tv" || type === "multi") {
+      promises.push(
+        limiterAxios(`${TMDB_BASE_URL}/discover/tv`, { params }).then((res) =>
+          res.data.results.map((item) => ({ ...item, media_type: "tv" }))
+        )
+      );
+    }
+
+    // Wait for all requests to finish
+    const resultsArrays = await Promise.all(promises);
+
+    // Flatten array of arrays into one big list
+    const combined = resultsArrays
+      .flat()
+      .sort((a, b) => b.popularity - a.popularity);
+
+    res.json({ results: combined });
+  } catch (error) {
+    console.error("Discover fetch failed:", error.message);
     res.status(500).json({ error: "Failed to fetch data" });
   }
 });

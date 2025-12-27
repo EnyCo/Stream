@@ -3,16 +3,11 @@
 note run from Git Bash terminal: "./run_dev.sh" to run full app
 
 ---
-
-consider various visualizations of ratings
-
 Content Discovery & Navigation
 
-Search Bar: The ability to search by title, actor, or director.
 Predictive/Fuzzy Search: Handling typos (e.g., "Spidrman" -> "Spider-Man").
-Filtering & Sorting: Filtering by Genre, Release Year, Rating, or Language.
 "Trending" or "Popular" Lists: displaying what everyone else is watching right now.
-"New Releases" Section: A dedicated area for content added in the last 30 days.Recommendation Engine: "Because you watched X, you might like Y."
+Recommendation Engine: "Because you watched X, you might like Y."
 
 User Personalization
 
@@ -25,10 +20,6 @@ Parental Controls: PIN protection or age restrictions for kids' profiles.
 Media Presentation (The "Card")
 
 Poster & Backdrop Art: High-quality visual assets.
-Metadata: Title, Year, Maturity Rating (PG-13, R), and Runtime.
-Synopsis: A brief plot summary.
-Cast & Crew Info: List of actors and directors.
-Genre Tags: Clickable tags (e.g., "Action", "Sci-Fi").
 User Rating: The 1-10 score or Star rating.
 Trailers: An embedded video player to watch the trailer.
 
